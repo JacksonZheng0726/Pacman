@@ -1,5 +1,6 @@
 from pacai.agents.learning.reinforcement import ReinforcementAgent
 from pacai.util import reflection
+import random
 
 class QLearningAgent(ReinforcementAgent):
     """
@@ -44,8 +45,8 @@ class QLearningAgent(ReinforcementAgent):
 
     def __init__(self, index, **kwargs):
         super().__init__(index, **kwargs)
-
         # You can initialize Q-values here.
+        self.Q_values = {}
 
     def getQValue(self, state, action):
         """
@@ -53,8 +54,12 @@ class QLearningAgent(ReinforcementAgent):
         and `pacai.core.directions.Directions`.
         Should return 0.0 if the (state, action) pair has never been seen.
         """
-
-        return 0.0
+        # look for the Q learning values that store with the key pair(state, action)
+        if (state, action) in self.Q_values:
+            return self.Q_values[(state, action)]
+        else:
+            return 0.0
+         
 
     def getValue(self, state):
         """
@@ -68,8 +73,19 @@ class QLearningAgent(ReinforcementAgent):
         which returns the actual best action.
         Whereas this method returns the value of the best action.
         """
-
-        return 0.0
+        # Get all the legal actions available in the state
+        legal_action = self.getLegalActions(state)
+        # If there is no legal action, return 0
+        if not legal_action:
+            return 0.0
+        # initialize a empty list to store the Q learning val
+        Value_Storage = []
+        # retrieve all the q learning values and add to the list
+        for action in legal_action:
+            Value_Storage.append(self.getQValue(state, action))
+        
+        # return the largest q learning value in the list
+        return max(Value_Storage)
 
     def getPolicy(self, state):
         """
@@ -83,9 +99,44 @@ class QLearningAgent(ReinforcementAgent):
         which returns the value of the best action.
         Whereas this method returns the best action itself.
         """
+        # Get all the legal actions available in the state
+        legal_action = self.getLegalActions(state)
+        # If there is no legal action, return 0
+        if not legal_action:
+            return None
+        
+        # retrieve the value of the best action
+        best_val = self.getValue(state)
+        best_action = []
+        # iterate through each action in the legal actions
+        for action in legal_action:
+            # compare the value of the state, action pair with the best value
+            if (self.getQValue(state, action) == best_val):
+                # add all the best action into the list
+                best_action.append(action)
+        # break ties randomly for better action
+        return random.choice(best_action)
+    
+    def update(self, state, action, nextState, reward):
+        # return the current Q values of the state and action
+        Q_val_current = self.getQValue(state, action)
 
-        return None
+        # compute the expected reward of agents conduct the action in the current gamestate
+        # reward is receive from current state to the next state
+        # discountRate determines how much the agents values the future reward or immediate reward
+        # self.getValue(nextState) determine the max future reward for the agent
+        expected_reward = reward + self.discountRate() * self.getValue(nextState)
 
+        # the expected_reward - Q_val_current determines how far the expected_q values from the current 
+        # Q values
+        # self.Alpha is the learning adjust according to the differnce, rate between 0 and 1
+        self.Q_values[(state, action)] = Q_val_current + self.Alpha() * (expected_reward - Q_val_current)
+    
+    def getAction(self, state):
+        return random.choice(state.getLegalActions(self.index))
+
+        
+        
 class PacmanQAgent(QLearningAgent):
     """
     Exactly the same as `QLearningAgent`, but with different default parameters.
